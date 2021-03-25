@@ -5,10 +5,12 @@
 
 package com.amazonaws.services.chime.sdkdemo.activity
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
+import com.amazonaws.services.chime.sdk.meetings.SetUpAudio
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.AudioVideoFacade
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultCameraCaptureSource
@@ -22,6 +24,7 @@ import com.amazonaws.services.chime.sdk.meetings.session.MeetingSessionConfigura
 import com.amazonaws.services.chime.sdk.meetings.session.MeetingSessionCredentials
 import com.amazonaws.services.chime.sdk.meetings.utils.logger.ConsoleLogger
 import com.amazonaws.services.chime.sdk.meetings.utils.logger.LogLevel
+import com.amazonaws.services.chime.sdkdemo.JoinMeetingActivity
 import com.amazonaws.services.chime.sdkdemo.R
 import com.amazonaws.services.chime.sdkdemo.data.JoinMeetingResponse
 import com.amazonaws.services.chime.sdkdemo.device.ScreenShareManager
@@ -42,12 +45,17 @@ class MeetingActivity : AppCompatActivity(),
     private lateinit var meetingId: String
     private lateinit var name: String
     private var cachedDevice: MediaDevice? = null
+    private lateinit var setUpAudio: SetUpAudio
+    private val MEETING_REGION = "us-east-1"
 
     private val TAG = "InMeetingActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        setUpAudio = SetUpAudio.getInstance()
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_meeting)
+
         meetingId = intent.getStringExtra(HomeActivity.MEETING_ID_KEY) as String
         name = intent.getStringExtra(HomeActivity.NAME_KEY) as String
 
@@ -95,11 +103,20 @@ class MeetingActivity : AppCompatActivity(),
     }
 
     override fun onJoinMeetingClicked() {
-        val rosterViewFragment = MeetingFragment.newInstance(meetingId)
-        supportFragmentManager
-            .beginTransaction()
-            .replace(R.id.root_layout, rosterViewFragment, "rosterViewFragment")
-            .commit()
+//        val rosterViewFragment = MeetingFragment.newInstance(meetingId)
+//        supportFragmentManager
+//            .beginTransaction()
+//            .replace(R.id.root_layout, rosterViewFragment, "rosterViewFragment")
+//            .commit()
+        setUpAudio.sendInformation(
+            meetingId,
+            name,
+            MEETING_REGION, this
+        )
+        setUpAudio.startActivityMeeting = {
+            val intent = Intent(this, JoinMeetingActivity::class.java)
+            startActivity(intent)
+        }
     }
 
     override fun onCachedDeviceSelected(mediaDevice: MediaDevice) {
