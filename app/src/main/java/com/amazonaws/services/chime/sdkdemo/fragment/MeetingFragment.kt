@@ -155,7 +155,7 @@ class MeetingFragment : Fragment(),
     companion object {
         fun newInstance(meetingId: String): MeetingFragment {
             val fragment = MeetingFragment()
-
+            fragment.arguments
             fragment.arguments =
                 Bundle().apply { putString(HomeActivity.MEETING_ID_KEY, meetingId) }
             return fragment

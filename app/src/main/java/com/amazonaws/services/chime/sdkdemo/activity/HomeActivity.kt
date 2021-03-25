@@ -11,28 +11,22 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
-import android.widget.EditText
-import android.widget.ImageButton
-import android.widget.ProgressBar
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.* // ktlint-disable
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.amazonaws.services.chime.sdk.meetings.SetUpAudio
 import com.amazonaws.services.chime.sdk.meetings.utils.Versioning
 import com.amazonaws.services.chime.sdk.meetings.utils.logger.ConsoleLogger
 import com.amazonaws.services.chime.sdk.meetings.utils.logger.LogLevel
+import com.amazonaws.services.chime.sdkdemo.JoinMeetingActivity
 import com.amazonaws.services.chime.sdkdemo.R
 import com.amazonaws.services.chime.sdkdemo.utils.encodeURLParam
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
-import java.net.URL
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import java.net.URL // ktlint-disable
+import kotlinx.coroutines.* // ktlint-disable
 
 class HomeActivity : AppCompatActivity() {
     private val logger = ConsoleLogger(LogLevel.INFO)
@@ -54,7 +48,7 @@ class HomeActivity : AppCompatActivity() {
     private var authenticationProgressBar: ProgressBar? = null
     private var meetingID: String? = null
     private var yourName: String? = null
-
+    private var setUpAudio: SetUpAudio ? = null
     companion object {
         const val MEETING_RESPONSE_KEY = "MEETING_RESPONSE"
         const val MEETING_ID_KEY = "MEETING_ID"
@@ -64,14 +58,14 @@ class HomeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_home)
-
+        setUpAudio = SetUpAudio.getInstance()
         meetingEditText = findViewById(R.id.editMeetingId)
         nameEditText = findViewById(R.id.editName)
         authenticationProgressBar = findViewById(R.id.progressAuthentication)
 
         findViewById<ImageButton>(R.id.buttonContinue)?.setOnClickListener { joinMeeting() }
 
-        val versionText: TextView = findViewById(R.id.versionText) as TextView
+        val versionText: TextView = findViewById<TextView>(R.id.versionText)
         versionText.text = "${getString(R.string.version_prefix)}${Versioning.sdkVersion()}"
     }
 
@@ -84,20 +78,38 @@ class HomeActivity : AppCompatActivity() {
     }
 
     private fun joinMeeting() {
-        meetingID = meetingEditText?.text.toString().trim().replace("\\s+".toRegex(), "+")
-        yourName = nameEditText?.text.toString().trim().replace("\\s+".toRegex(), "+")
-
-        if (meetingID.isNullOrBlank()) {
-            showToast(this, getString(R.string.user_notification_meeting_id_invalid))
-        } else if (yourName.isNullOrBlank()) {
-            showToast(this, getString(R.string.user_notification_attendee_name_invalid))
-        } else {
-            if (hasPermissionsAlready()) {
-                authenticate(getString(R.string.test_url), meetingID, yourName)
-            } else {
-                ActivityCompat.requestPermissions(this, WEBRTC_PERM, WEBRTC_PERMISSION_REQUEST_CODE)
+        if (hasPermissionsAlready()) {
+            setUpAudio?.sendInformation(
+                meetingEditText?.text.toString(),
+                nameEditText?.text.toString(),
+                MEETING_REGION, this
+            )
+            setUpAudio?.startActivityMeeting = {
+                val intent = Intent(this, JoinMeetingActivity::class.java)
+                startActivity(intent)
             }
+        } else {
+            ActivityCompat.requestPermissions(
+                this@HomeActivity,
+                WEBRTC_PERM,
+                WEBRTC_PERMISSION_REQUEST_CODE
+            )
         }
+
+//        meetingID = meetingEditText?.text.toString().trim().replace("\\s+".toRegex(), "+")
+//        yourName = nameEditText?.text.toString().trim().replace("\\s+".toRegex(), "+")
+//
+//        if (meetingID.isNullOrBlank()) {
+//            showToast(this, getString(R.string.user_notification_meeting_id_invalid))
+//        } else if (yourName.isNullOrBlank()) {
+//            showToast(this, getString(R.string.user_notification_attendee_name_invalid))
+//        } else {
+//            if (hasPermissionsAlready()) {
+//                authenticate(getString(R.string.test_url), meetingID, yourName)
+//            } else {
+//                ActivityCompat.requestPermissions(this, WEBRTC_PERM, WEBRTC_PERMISSION_REQUEST_CODE)
+//            }
+//        }
     }
 
     private fun hasPermissionsAlready(): Boolean {
@@ -146,6 +158,7 @@ class HomeActivity : AppCompatActivity() {
                 if (meetingResponseJson == null) {
                     showToast(applicationContext, getString(R.string.user_notification_meeting_start_error))
                 } else {
+
                     val intent = Intent(applicationContext, MeetingActivity::class.java)
                     intent.putExtra(MEETING_RESPONSE_KEY, meetingResponseJson)
                     intent.putExtra(MEETING_ID_KEY, meetingId)
@@ -185,7 +198,7 @@ class HomeActivity : AppCompatActivity() {
                         it.close()
                     }
 
-                    if (responseCode == 200) {
+                    if (responseCode == 201) {
                         response.toString()
                     } else {
                         logger.error(TAG, "Unable to join meeting. Response code: $responseCode")

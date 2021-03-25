@@ -27,6 +27,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:hint="@string/edit_meeting_id"
+        android:text="232"
         android:importantForAutofill="no"
         android:inputType="text"
         android:maxLength="35"
@@ -38,6 +39,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:hint="@string/edit_name"
+        android:text="Nam"
         android:importantForAutofill="no"
         android:inputType="text"
         android:textAlignment="center" />
