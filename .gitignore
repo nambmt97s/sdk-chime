@@ -8,3 +8,4 @@
 .externalNativeBuild
 .cxx
 amazon-chime-sdk/docs
+local.properties
