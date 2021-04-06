@@ -23,15 +23,18 @@ class UserJoinedAdapter(private val users: List<RosterAttendee>) :
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(users[position])
+        holder.itemView.setOnClickListener {
+            if (position != 0) userClickListener?.invoke(users[position])
+        }
     }
-
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
-        private var imgAvatarUser: ImageView = itemView.findViewById(R.id.imgAvatarUser)
-        private var tvUserName: TextView = itemView.findViewById(R.id.tvUserName)
+         var imgAvatarUser: ImageView = itemView.findViewById(R.id.imgAvatarUser)
+         var tvUserName: TextView = itemView.findViewById(R.id.tvUserName)
 
         fun bind(user: RosterAttendee) {
             tvUserName.text = user.attendeeName
         }
     }
+    var userClickListener: ((RosterAttendee) -> Unit) ? = null
 }

@@ -25,6 +25,10 @@ class CallingMeetingManager(private val chimeView: ChimeView) {
         chimeView.setConfigVideoChange(check)
     }
 
+    fun sendEmojiPath(path: String) {
+        chimeView.getEmojiPath(path)
+    }
+
     companion object {
         private var instance: CallingMeetingManager? = null
 

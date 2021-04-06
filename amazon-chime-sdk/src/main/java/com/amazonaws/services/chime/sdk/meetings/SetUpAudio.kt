@@ -7,8 +7,11 @@ import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.Defaul
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultSurfaceTextureCaptureSourceFactory
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.DefaultEglCoreFactory
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.EglCoreFactory
+import com.amazonaws.services.chime.sdk.meetings.data.response.Response
 import com.amazonaws.services.chime.sdk.meetings.internal.utils.CpuVideoProcessor
 import com.amazonaws.services.chime.sdk.meetings.session.* // ktlint-disable
+import com.amazonaws.services.chime.sdk.meetings.sharepreference.SharePreferenceKey
+import com.amazonaws.services.chime.sdk.meetings.sharepreference.SharedPreferencesManager
 import com.amazonaws.services.chime.sdk.meetings.utils.logger.ConsoleLogger
 import com.amazonaws.services.chime.sdk.meetings.utils.logger.LogLevel
 import com.google.gson.Gson
@@ -79,6 +82,9 @@ class SetUpAudio {
                 cpuVideoProcessor = CpuVideoProcessor(logger, eglCoreFactory)
                 gpuVideoProcessor = GpuVideoProcessor(logger, eglCoreFactory)
                 startActivityMeeting?.invoke()
+                val result = Gson().fromJson<Response>(response, Response::class.java)
+                SharedPreferencesManager.getInstance(applicationContext).putObject(SharePreferenceKey.RESPONSE, result)
+                Log.d("xxxxx", "Response:: $result")
             } else {
                 Log.d("XXXXX", "Thông tin phòng sai ")
             }

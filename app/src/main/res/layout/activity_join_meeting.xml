@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     tools:context=".JoinMeetingActivity">
 
-    <com.amazonaws.services.chime.sdk.meetings.ChimeView
+    <RelativeLayout
         android:id="@+id/chimeView"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

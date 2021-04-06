@@ -5,8 +5,6 @@
   -->
 
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:gravity="center"
@@ -27,7 +25,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="16dp"
         android:hint="@string/edit_meeting_id"
-        android:text="232"
+        android:text="248"
         android:importantForAutofill="no"
         android:inputType="text"
         android:maxLength="35"

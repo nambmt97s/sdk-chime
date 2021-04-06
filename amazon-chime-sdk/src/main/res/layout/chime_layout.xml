@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/subViewVideo"
     android:layout_width="match_parent"
+    android:background="@color/purple_700"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     android:layout_height="match_parent">
 
     <RelativeLayout
@@ -12,15 +15,28 @@
         android:visibility="visible" />
 
     <RelativeLayout
+        android:id="@+id/invisibleCamera"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/grey"
+        android:visibility="gone" />
+
+    <View
+        android:id="@+id/viewSpace"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_alignParentBottom="true" />
+
+    <RelativeLayout
         android:id="@+id/containerLocalVideo"
         android:layout_width="160dp"
         android:layout_height="100dp"
         android:layout_marginEnd="20dp"
-        android:layout_marginBottom="100dp"
+        android:layout_above="@id/viewSpace"
+        android:layout_alignParentRight="true"
         android:animateLayoutChanges="true"
-        android:visibility="visible"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_marginBottom="100dp"
+        android:visibility="visible">
 
         <RelativeLayout
             android:id="@+id/localVideo"
@@ -28,13 +44,13 @@
             android:layout_height="100dp"
             android:animateLayoutChanges="true" />
 
-        <com.vanniktech.emoji.EmojiTextView
+        <ImageView
             android:id="@+id/emojiCurrentUser"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textSize="30sp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_marginTop="10dp"
             android:layout_marginStart="5dp"
-            android:layout_marginTop="10dp"/>
+            android:background="@color/black" />
     </RelativeLayout>
 
     <ImageView
@@ -45,8 +61,8 @@
         android:layout_marginEnd="20dp"
         android:src="@drawable/close_button"
         android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true" />
 
     <ImageView
         android:id="@+id/swipe_camera"
@@ -68,43 +84,54 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <com.vanniktech.emoji.EmojiTextView
+    <ImageView
         android:id="@+id/emoji"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
         android:layout_marginStart="@dimen/size_30dp"
         android:layout_marginBottom="120dp"
-        android:textSize="50sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        android:layout_above="@id/viewSpace"
+        android:textSize="50sp" />
 
-    <com.vanniktech.emoji.EmojiTextView
+    <ImageView
         android:id="@+id/emojiCurrentUserWhenTurnOffCamera"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
         android:layout_marginEnd="@dimen/size_30dp"
         android:layout_marginBottom="120dp"
         android:textSize="50sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentBottom="true" />
 
     <ImageView
         android:id="@+id/icMoveView"
         android:layout_width="30dp"
         android:layout_height="30dp"
-        android:layout_marginEnd="2dp"
+        android:layout_centerVertical="true"
         android:background="@color/grey"
+        android:layout_marginEnd="1dp"
+        android:layout_toLeftOf="@id/viewSpace2"
         android:src="@drawable/ic_baseline_keyboard_arrow_left_24"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <com.amazonaws.services.chime.sdk.meetings.customview.SlideCustomView
-        android:id="@+id/slideCustomView"
-        android:layout_width="wrap_content"
+    <View
+        android:id="@+id/viewSpace2"
+        android:layout_width="1dp"
         android:layout_height="match_parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toEndOf="@id/icMoveView"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:background="@color/grey"
+        android:layout_alignParentEnd="true" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rcSlide"
+        android:layout_width="100dp"
+        android:background="@color/grey"
+        android:layout_height="match_parent"
+        android:layout_marginStart="10dp"
+        android:layout_toRightOf="@id/viewSpace2"
+        android:orientation="vertical"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+
+</RelativeLayout>

@@ -2,7 +2,6 @@ package com.amazonaws.services.chime.sdk.meetings
 
 import android.animation.LayoutTransition
 import android.content.Context
-import android.os.Bundle
 import android.util.AttributeSet
 import android.util.DisplayMetrics
 import android.util.Log
@@ -12,23 +11,22 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.RelativeLayout
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentManager
 import androidx.recyclerview.widget.RecyclerView
 import com.amazonaws.services.chime.sdk.R
 import com.amazonaws.services.chime.sdk.meetings.adapter.UserJoinedAdapter
-import com.amazonaws.services.chime.sdk.meetings.audiovideo.* // ktlint-disable
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.*
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.DefaultVideoRenderView
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoTileObserver
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoTileState
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.DefaultEglCoreFactory
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.EglCoreFactory
-import com.amazonaws.services.chime.sdk.meetings.customview.SlideCustomView
 import com.amazonaws.services.chime.sdk.meetings.data.CallingState
 import com.amazonaws.services.chime.sdk.meetings.data.RosterAttendee
 import com.amazonaws.services.chime.sdk.meetings.data.VideoCollectionTile
+import com.amazonaws.services.chime.sdk.meetings.data.response.Response
 import com.amazonaws.services.chime.sdk.meetings.device.MediaDevice
 import com.amazonaws.services.chime.sdk.meetings.device.MediaDeviceType
 import com.amazonaws.services.chime.sdk.meetings.dialog.AudioSelectDialog
@@ -37,6 +35,8 @@ import com.amazonaws.services.chime.sdk.meetings.internal.utils.CpuVideoProcesso
 import com.amazonaws.services.chime.sdk.meetings.realtime.RealtimeObserver
 import com.amazonaws.services.chime.sdk.meetings.session.MeetingSession
 import com.amazonaws.services.chime.sdk.meetings.session.MeetingSessionStatus
+import com.amazonaws.services.chime.sdk.meetings.sharepreference.SharePreferenceKey
+import com.amazonaws.services.chime.sdk.meetings.sharepreference.SharedPreferencesManager
 import com.amazonaws.services.chime.sdk.meetings.utils.Convert
 import com.amazonaws.services.chime.sdk.meetings.utils.DefaultModality
 import com.amazonaws.services.chime.sdk.meetings.utils.ModalityType
@@ -44,8 +44,8 @@ import com.amazonaws.services.chime.sdk.meetings.utils.logger.ConsoleLogger
 import com.amazonaws.services.chime.sdk.meetings.utils.logger.LogLevel
 import com.nam.demochime.utils.GpuVideoProcessor
 import com.vanniktech.emoji.EmojiManager
-import com.vanniktech.emoji.EmojiTextView
 import com.vanniktech.emoji.google.GoogleEmojiProvider
+import java.util.*
 
 class ChimeView @JvmOverloads constructor(
     context: Context,
@@ -57,7 +57,7 @@ class ChimeView @JvmOverloads constructor(
     private lateinit var audioVideo: AudioVideoFacade
     private val currentRoster = mutableMapOf<String, RosterAttendee>()
     private val remoteVideoTileStates = mutableListOf<VideoCollectionTile>()
-    private val currentRosters = mutableListOf<RosterAttendee>()
+    private var currentRosters = mutableListOf<RosterAttendee>()
     private val eglCoreFactory: EglCoreFactory = DefaultEglCoreFactory()
     private lateinit var gpuVideoProcessor: GpuVideoProcessor
     private lateinit var cpuVideoProcessor: CpuVideoProcessor
@@ -65,10 +65,15 @@ class ChimeView @JvmOverloads constructor(
     private var compareVideo: VideoCollectionTile? = null
     private var meetingSession: MeetingSession? = null
     private var userJoinedAdapter: UserJoinedAdapter? = null
-    private lateinit var callingState: CallingState
+    private var callingState: CallingState? = null
     private lateinit var audioDevices: List<MediaDevice>
     private lateinit var audioSelectDialog: AudioSelectDialog
     private lateinit var setUpAudio: SetUpAudio
+    private var memberJoined = 0
+    private var channelData: ChannelData = ChannelData(openCamera = true, openMic = true)
+    private var focusAttendee: RosterAttendee? = null
+    private var initFocusVideo = true
+    private var inforMeeting: Response? = null
 
     private val logger = ConsoleLogger(LogLevel.DEBUG)
     private val TAG: String = "XXXXX"
@@ -76,20 +81,26 @@ class ChimeView @JvmOverloads constructor(
     //    private val VIDEO_ASPECT_RATIO_16_9 = 0.5625
     private lateinit var chimeContainer: RelativeLayout
     private lateinit var localVideo: RelativeLayout
-    private lateinit var renderViewLayout: View
+    private var renderViewLayout: View? = null
     private lateinit var renderViewLocalLayout: View
     private lateinit var icMoveView: ImageView
-    private lateinit var slideCustomView: SlideCustomView
+
+    //    private lateinit var slideCustomView: SlideCustomView
     private lateinit var localRenderView: DefaultVideoRenderView
-    private lateinit var rcUsersJoined: RecyclerView
+
+    //    private lateinit var rcUsersJoined: RecyclerView
     private lateinit var userJoinedView: View
     private lateinit var btnSpeaker: ImageView
     private lateinit var swipeCamera: ImageView
     private lateinit var icClose: ImageView
-    private lateinit var emoji: EmojiTextView
-    private lateinit var emojiCurrentUser: EmojiTextView
-    private lateinit var emojiCurrentUserWhenTurnOffCamera: EmojiTextView
+    private lateinit var emoji: ImageView
+    private lateinit var emojiCurrentUser: ImageView
+    private lateinit var emojiCurrentUserWhenTurnOffCamera: ImageView
     private lateinit var containerLocalVideo: RelativeLayout
+    private lateinit var invisibleCamera: RelativeLayout
+
+    //    private lateinit var constraintLayoutMove: ConstraintLayout
+    private lateinit var rcSlide: RecyclerView
 
     var updateCallingState: ((CallingState) -> Unit)? = null
     var notificationUserJoin: ((List<RosterAttendee>) -> Unit)? = null
@@ -98,47 +109,93 @@ class ChimeView @JvmOverloads constructor(
     private lateinit var cameraCaptureSource: CameraCaptureSource
     private var isOpenListUser = false
     private var isOpenRelativeLayoutLocalVideo = false
+    private var positionEmojiX: Float? = null
+    private var positionEmojiY: Float? = null
+    private var firstTimeSet = true
 
     init {
+        memberJoined++
         EmojiManager.install(GoogleEmojiProvider())
+        inforMeeting = SharedPreferencesManager.getInstance(this.context)
+            .getObject(SharePreferenceKey.RESPONSE, Response::class.java)
         inflateView()
         setUpBegin()
         handleMoveView()
         handleChooseAudio()
         handleSwipeCamera()
         handleClickLocalVideo()
+        handleClickUser()
+    }
+
+    private fun handleClickUser() {
+        val inflater =
+            context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+        userJoinedAdapter?.userClickListener = {
+            // unbind current attendee to bind attendee new
+            getVideoTileStateFromRosterAttendee(focusAttendee!!)?.let { videoCollectionTile ->
+                unbind(videoCollectionTile)
+            }
+            /*
+
+            */
+//            chimeContainer.removeView(renderViewLayout)
+//            requestLayout()
+//            invalidate()
+//            renderViewLayout = null
+//            renderViewLayout = inflater.inflate(R.layout.chime_view, chimeContainer, true)
+            focusAttendee = it
+            updateView()
+        }
+    }
+
+    private fun getVideoTileStateFromRosterAttendee(rosterAttendee: RosterAttendee): VideoCollectionTile? {
+        remoteVideoTileStates.forEach {
+            if (it.videoTileState.attendeeId == rosterAttendee.attendeeId)
+                return it
+        }
+        return null
+    }
+
+    private fun updateView() {
+        var isHaveRemoteVideo = false
+        remoteVideoTileStates.forEach {
+            if (it.videoTileState.attendeeId == focusAttendee?.attendeeId) {
+                isHaveRemoteVideo = true
+                bind(it, renderViewLayout!!.findViewById(R.id.chime))
+            }
+        }
+        if (!isHaveRemoteVideo) {
+            invisibleCamera.width
+            invisibleCamera.height
+            invisibleCamera.layoutParams
+            invisibleCamera.visibility = View.VISIBLE
+        } else {
+            invisibleCamera.visibility = View.GONE
+        }
     }
 
     private fun handleClickLocalVideo() {
         val layoutParamsContainerLocalVideo =
-            containerLocalVideo.layoutParams as ConstraintLayout.LayoutParams
+            containerLocalVideo.layoutParams as RelativeLayout.LayoutParams
         val layoutParamsEmoji = emojiCurrentUser.layoutParams as RelativeLayout.LayoutParams
         val layoutParamsLocalVideo = localVideo.layoutParams as RelativeLayout.LayoutParams
         containerLocalVideo.setOnClickListener {
             if (!isOpenRelativeLayoutLocalVideo) {
-                val layoutParamsConstraint = ConstraintLayout.LayoutParams(
-                    ConstraintLayout.LayoutParams.MATCH_PARENT,
-                    ConstraintLayout.LayoutParams.MATCH_PARENT
+                val layoutParamsConstraint = RelativeLayout.LayoutParams(
+                    RelativeLayout.LayoutParams.MATCH_PARENT,
+                    RelativeLayout.LayoutParams.MATCH_PARENT
                 )
                 containerLocalVideo.layoutParams = layoutParamsConstraint
                 containerLocalVideo.layoutTransition.enableTransitionType(LayoutTransition.APPEARING)
-
                 val layoutParamsRelative = RelativeLayout.LayoutParams(
                     RelativeLayout.LayoutParams.MATCH_PARENT,
                     RelativeLayout.LayoutParams.MATCH_PARENT
                 )
                 localVideo.layoutParams = layoutParamsRelative
-                val layoutParamsRelative2 = RelativeLayout.LayoutParams(
-                    RelativeLayout.LayoutParams.MATCH_PARENT,
-                    RelativeLayout.LayoutParams.MATCH_PARENT
-                )
-//                layoutParamsRelative2.addRule(RelativeLayout.ALIGN_BOTTOM,localVideo.id)
-                layoutParamsRelative2.marginStart = 50
-                layoutParamsRelative2.topMargin =
-                    context.resources.displayMetrics.heightPixels - emoji.bottom
-
-                emojiCurrentUser.textSize = 100f
-                emojiCurrentUser.layoutParams = layoutParamsRelative2
+                emojiCurrentUser.x = emoji.left.toFloat()
+                emojiCurrentUser.y = emoji.top.toFloat()
+                emojiCurrentUser.layoutParams.width = emoji.width
+                emojiCurrentUser.layoutParams.height = emoji.height
             }
             icClose.visibility = View.VISIBLE
             containerLocalVideo.isClickable = false
@@ -154,6 +211,8 @@ class ChimeView @JvmOverloads constructor(
             icClose.visibility = View.GONE
             containerLocalVideo.isClickable = true
             isOpenRelativeLayoutLocalVideo = !isOpenRelativeLayoutLocalVideo
+            emojiCurrentUser.x = positionEmojiX!!
+            emojiCurrentUser.y = positionEmojiY!!
         }
     }
 
@@ -172,12 +231,7 @@ class ChimeView @JvmOverloads constructor(
     }
 
     private fun initEmoji() {
-//        emoji.text = String(Character.toChars(0x1F600))
-        if (isOpenRelativeLayoutLocalVideo) {
-            emojiCurrentUserWhenTurnOffCamera.text = String(Character.toChars(0x1F600))
-        } else {
-            emojiCurrentUser.text = String(Character.toChars(0x1F600))
-        }
+//        displayEmoji(emojiCurrentUser, String(Character.toChars(0x1F600)))
     }
 
     private fun handleSwipeCamera() {
@@ -200,12 +254,15 @@ class ChimeView @JvmOverloads constructor(
     }
 
     private fun handleMoveView() {
-        slideCustomView.alpha = 0.5F
+        rcSlide.alpha = 0.5F
         userJoinedAdapter = UserJoinedAdapter(currentRosters)
-        rcUsersJoined.adapter = userJoinedAdapter
+//        rcUsersJoined.adapter = userJoinedAdapter
+        rcSlide.adapter = userJoinedAdapter
+
         notificationUserJoin = {
             userJoinedAdapter!!.notifyDataSetChanged()
         }
+
         icMoveView.setOnClickListener {
             val displayMetrics = DisplayMetrics()
             val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -213,19 +270,21 @@ class ChimeView @JvmOverloads constructor(
             val height = displayMetrics.heightPixels
             val width = displayMetrics.widthPixels
             val moveViewXSize: Int = icMoveView.measuredWidth
-            val slideXSize = slideCustomView.measuredWidth
+            val slideXSize = rcSlide.measuredWidth
             if (isOpenListUser) {
-                slideCustomView.animate().x(width.toFloat() - Convert.convertDpToPixel(2f, context))
+                rcSlide.animate().x(width.toFloat() - Convert.convertDpToPixel(2f, context))
                     .duration = 300
                 icMoveView.animate()
                     .x(width - moveViewXSize.toFloat() - Convert.convertDpToPixel(2f, context))
                     .duration = 300
-                isOpenListUser = false
+                isOpenListUser = !isOpenListUser
                 icMoveView.setImageResource(R.drawable.ic_baseline_keyboard_arrow_right_24)
             } else {
-                icMoveView.animate().x(width - moveViewXSize - slideXSize.toFloat()).duration = 300
-                slideCustomView.animate().x((width - slideXSize).toFloat()).duration = 300
-                isOpenListUser = true
+                icMoveView.animate().x((width - moveViewXSize - slideXSize.toFloat())).duration =
+                    300
+
+                rcSlide.animate().x((width - slideXSize).toFloat()).duration = 300
+                isOpenListUser = !isOpenListUser
                 icMoveView.setImageResource(R.drawable.ic_baseline_keyboard_arrow_left_24)
             }
         }
@@ -245,47 +304,47 @@ class ChimeView @JvmOverloads constructor(
             else
                 realtimeLocalMute() // stop mic
         }
-        callingState.isSpeaking = !check
-        updateCallingState?.invoke(callingState)
+        callingState?.isSpeaking = !check
+        updateCallingState?.invoke(callingState!!)
     }
 
+    // Check khi thay bam nut video
     fun setConfigVideoChange(check: Boolean) {
         with(meetingSession!!.audioVideo) {
-            if (!check) {
-                startLocalVideo(cameraCaptureSource) // start camera
-                cameraCaptureSource.start()
-                localVideo.visibility = View.VISIBLE
-                localRenderView.visibility = View.VISIBLE
-            } else {
-                cameraCaptureSource.stop() // stop camera
-                stopLocalVideo()
-                localVideo.visibility = View.GONE
-                localRenderView.visibility = View.GONE
+            if (memberJoined == 1) {
+                if (!check) {
+                    chimeContainer.visibility = View.VISIBLE
+                    invisibleCamera.visibility = View.VISIBLE
+                    startLocalVideo(cameraCaptureSource) // start camera
+                    cameraCaptureSource.start()
+                } else {
+                    chimeContainer.visibility = View.GONE
+                    invisibleCamera.visibility = View.GONE
+                    cameraCaptureSource.stop() // stop camera
+                    stopLocalVideo()
+                }
+            }
+            if (memberJoined > 1) {
+                if (!check) {
+                    containerLocalVideo.visibility = View.VISIBLE
+//                    localVideo.visibility = View.VISIBLE
+                    localRenderView.visibility = View.VISIBLE
+                    startLocalVideo(cameraCaptureSource) // start camera
+                    cameraCaptureSource.start()
+                } else {
+                    containerLocalVideo.visibility = View.GONE
+//                    localVideo.visibility = View.GONE
+                    localRenderView.visibility = View.GONE
+                    cameraCaptureSource.stop() // stop camera
+                    stopLocalVideo()
+                }
             }
         }
-        callingState.isStreaming = !check
-        updateCallingState?.invoke(callingState)
+        callingState?.isStreaming = !check
+        updateCallingState?.invoke(callingState!!)
     }
 
-    fun join(bundle: Bundle) {
-        val isSpeaking = bundle.getBoolean("isSpeaking")
-        val isStreaming = bundle.getBoolean("isStreaming")
-        with(meetingSession!!.audioVideo) {
-            if (isSpeaking) realtimeLocalUnmute() // start mic
-            else realtimeLocalMute() // stop mic
-            if (isStreaming) {
-                startLocalVideo(cameraCaptureSource) // start camera
-                cameraCaptureSource.start()
-                localVideo.visibility = View.VISIBLE
-                localRenderView.visibility = View.VISIBLE
-            } else {
-                cameraCaptureSource.stop() // stop camera
-                stopLocalVideo()
-                localVideo.visibility = View.GONE
-                localRenderView.visibility = View.GONE
-            }
-        }
-        updateCallingState?.invoke(callingState)
+    fun join(chimeMeetConferenceOptions: ChimeMeetConferenceOptions) {
     }
 
     private fun subscribeListener() {
@@ -321,34 +380,53 @@ class ChimeView @JvmOverloads constructor(
                 }
             }
         }
-
+        // check focus video then update surface view
+        if (focusAttendee != null && focusAttendee?.attendeeId == tileState.attendeeId) {
+            createVideoCollectionTile(tileState).let {
+                // hide non video when turn on again camera
+                bind(it, renderViewLayout!!.findViewById(R.id.chime))
+                invisibleCamera.visibility = View.GONE
+            }
+        }
         Log.d(TAG, "yyyy " + tileState.isLocalTile)
         Log.d(TAG, "zzzz " + remoteVideoTileStates.size)
         if (remoteVideoTileStates.size == 1) {
-            showLocal()
+            showOnlyLocal()
         }
-        if (videoCollectionTile.videoTileState.isLocalTile && callingState.idAttendee != videoCollectionTile.videoTileState.attendeeId) {
-            callingState = CallingState(
-                name = videoCollectionTile.attendeeName,
-                idAttendee = videoCollectionTile.videoTileState.attendeeId
-            )
-        }
-        if (videoCollectionTile.videoTileState.isLocalTile) {
-            callingState.isStreaming = true
-        }
-        if (remoteVideoTileStates.size == 2) {
-            initChime()
-            currentRoster.entries.forEach {
-                Log.d(
-                    TAG, "CurrentRoster:  " +
-                            "attendeeId: ${it.value.attendeeId} " +
-                            "isActiveSpeaker: ${it.value.isActiveSpeaker} " +
-                            "attendeeName ${it.value.attendeeName} " +
-                            "signalStrength ${it.value.signalStrength} " +
-                            "volumeLevel ${it.value.volumeLevel} "
+        /**
+         *
+         *
+         */
+        if (callingState == null) {
+            val inforMeeting = SharedPreferencesManager.getInstance(this.context)
+                .getObject(SharePreferenceKey.RESPONSE, Response::class.java)
+            inforMeeting?.let {
+                callingState = CallingState(
+                    getAttendeeName(
+                        it.joinInfo.attendee.attendee.attendeeId,
+                        it.joinInfo.attendee.attendee.externalUserId
+                    ), it.joinInfo.attendee.attendee.attendeeId
                 )
+//                currentRosters.add(
+//                    RosterAttendee(
+//                        inforMeeting.joinInfo.attendee.attendee.externalUserId,
+//                        getAttendeeName(
+//                            it.joinInfo.attendee.attendee.attendeeId,
+//                            it.joinInfo.attendee.attendee.externalUserId
+//                        )
+//                    )
+//                )
+//                notificationUserJoin?.invoke(currentRosters)
             }
         }
+        if (videoCollectionTile.videoTileState.isLocalTile) {
+            callingState?.isStreaming = true
+        }
+    }
+
+    private fun showOnlyLocal() {
+        hideContainerLocalMiniSize()
+        bind(remoteVideoTileStates[0], renderViewLayout!!.findViewById(R.id.chime))
     }
 
     private fun <T> List<T>.replace(newValue: T, block: (T) -> Boolean): List<T> {
@@ -357,16 +435,66 @@ class ChimeView @JvmOverloads constructor(
         }
     }
 
-    private fun showLocal() {
-        bind(remoteVideoTileStates[0], renderViewLayout.findViewById(R.id.chime))
+    fun getEmojiPath(path: String) {
+        if (memberJoined == 1) {
+            displayEmoji(emoji, path)
+        } else {
+            if (channelData.openCamera) {
+                displayEmoji(emojiCurrentUser, path)
+            } else {
+                displayEmoji(emojiCurrentUserWhenTurnOffCamera, path)
+            }
+        }
     }
 
-    private fun initChime() {
-        if (compareVideo == null) {
-            compareVideo = remoteVideoTileStates[0]
+    private fun hideContainerLocalMiniSize() {
+        containerLocalVideo.visibility = View.GONE
+        renderViewLocalLayout.findViewById<DefaultVideoRenderView>(R.id.chime_2).visibility =
+            View.GONE
+        containerLocalVideo.isClickable = false
+    }
+
+    private fun showContainerLocalMiniSize() {
+        containerLocalVideo.visibility = View.VISIBLE
+        renderViewLocalLayout.findViewById<DefaultVideoRenderView>(R.id.chime_2).visibility =
+            View.VISIBLE
+        containerLocalVideo.isClickable = true
+    }
+
+    private fun showChime() {
+        // khi có 1 người join
+        if (memberJoined == 1) {
+            hideContainerLocalMiniSize()
+            if (channelData.openCamera) {
+                invisibleCamera.visibility = View.GONE
+                bind(remoteVideoTileStates[0], renderViewLayout!!.findViewById(R.id.chime))
+            } else {
+                invisibleCamera.visibility = View.VISIBLE
+            }
         }
-        bind(remoteVideoTileStates[1], renderViewLayout.findViewById(R.id.chime))
-        bind(remoteVideoTileStates[0], renderViewLocalLayout.findViewById(R.id.chime_2))
+        // khi có >1 người join
+        if (memberJoined > 1) {
+            // show container LocalVideo
+            showContainerLocalMiniSize()
+            var isHaveRemoteVideo = false
+            if (compareVideo == null) {
+                compareVideo = remoteVideoTileStates[0]
+            }
+            remoteVideoTileStates.forEach {
+                if (it.videoTileState.attendeeId == focusAttendee!!.attendeeId) {
+                    isHaveRemoteVideo = true
+                    bind(it, renderViewLayout!!.findViewById(R.id.chime))
+                }
+            }
+            if (!isHaveRemoteVideo) {
+                invisibleCamera.visibility = View.VISIBLE
+            }
+            if (channelData.openCamera) {
+                bind(remoteVideoTileStates[0], renderViewLocalLayout.findViewById(R.id.chime_2))
+            } else {
+                containerLocalVideo.visibility = View.GONE
+            }
+        }
     }
 
     private fun bind(
@@ -377,20 +505,45 @@ class ChimeView @JvmOverloads constructor(
         audioVideo.bindVideoView(videoRenderView, videoCollectionTile.videoTileState.tileId)
     }
 
+    private fun unbind(videoCollectionTile: VideoCollectionTile) {
+        audioVideo.unbindVideoView(videoCollectionTile.videoTileState.tileId)
+    }
+
     override fun onVideoTilePaused(tileState: VideoTileState) {
         Log.d(TAG, "onVideoTilePaused: ")
     }
 
-    override fun onVideoTileRemoved(tileState: VideoTileState) {
-        if (tileState.attendeeId == callingState.idAttendee) {
-            callingState.isStreaming = false
+    private fun getVideoCollectionTileStateFromVideoTileState(tileState: VideoTileState): VideoCollectionTile? {
+        if (remoteVideoTileStates.size > 0) {
+            remoteVideoTileStates.forEach {
+                if (it.videoTileState.attendeeId == tileState.attendeeId) {
+                    return it
+                }
+            }
         }
-//        remoteVideoTileStates.forEach {
-//            if (it.videoTileState.attendeeId == tileState.attendeeId) {
-//                remoteVideoTileStates.remove(it)
-//                return@forEach
-//            }
-//        }
+        return null
+    }
+
+    override fun onVideoTileRemoved(tileState: VideoTileState) {
+        if (tileState.attendeeId == callingState?.idAttendee) {
+            callingState?.isStreaming = false
+        }
+        if (tileState.attendeeId == focusAttendee?.attendeeId) {
+            // unbind video khi một video ngừng hiển thị từ web
+            getVideoCollectionTileStateFromVideoTileState(tileState)?.let {
+                unbind(it)
+            }
+            invisibleCamera.visibility = View.VISIBLE
+        }
+        val mutableIterator = remoteVideoTileStates.iterator()
+        while (mutableIterator.hasNext()) {
+            val current = mutableIterator.next()
+            if (current.videoTileState.attendeeId == tileState.attendeeId) {
+                unbind(current)
+                mutableIterator.remove()
+                return
+            }
+        }
         Log.d(TAG, "onVideoTileRemoved: ")
     }
 
@@ -407,18 +560,58 @@ class ChimeView @JvmOverloads constructor(
     }
 
     override fun onAttendeesJoined(attendeeInfo: Array<AttendeeInfo>) {
+        attendeeInfo.forEach {
+            Log.d(TAG, "attendeeInfo: $it")
+        }
+        if (callingState == null) {
+            inforMeeting?.let {
+                callingState = CallingState(
+                    getAttendeeName(
+                        it.joinInfo.attendee.attendee.attendeeId,
+                        it.joinInfo.attendee.attendee.externalUserId
+                    ), it.joinInfo.attendee.attendee.attendeeId
+                )
+            }
+        }
+        Log.d(TAG, "member$memberJoined")
         attendeeInfo.forEach { (attendeeId, externalUserId) ->
             currentRoster.getOrPut(attendeeId,
                 { RosterAttendee(attendeeId, getAttendeeName(attendeeId, externalUserId)) })
         }
         currentRosters.clear()
+        memberJoined = 0
         currentRoster.forEach { (_, roster) ->
             Log.d(TAG, "xxxxxxxxx " + roster.attendeeName)
             currentRosters.add(roster)
+            memberJoined++
         }
-        // Here
-        callingState.allAttendees = currentRoster.values.toList()
-        updateCallingState?.invoke(callingState)
+        /* sort currentRosters
+        */
+        currentRosters.forEachIndexed { index, currentRoster ->
+            if (currentRoster.attendeeId == inforMeeting?.joinInfo?.attendee?.attendee?.attendeeId) {
+                if (index == 0) return@forEachIndexed
+                else {
+                    Collections.swap(currentRosters, 0, index)
+                    return@forEachIndexed
+                }
+            }
+        }
+        if (focusAttendee == null) {
+            focusAttendee = currentRosters[0]
+        }
+        if (firstTimeSet && focusAttendee != null && memberJoined > 1) {
+            focusAttendee = currentRosters[1]
+            firstTimeSet = false
+        }
+        if (memberJoined > 1) {
+            focusAttendee = currentRosters[1]
+        }
+        if (memberJoined > 0) {
+            showChime()
+        }
+        Log.d(TAG, "member$memberJoined")
+        callingState?.allAttendees = currentRoster.values.toList()
+        updateCallingState?.invoke(callingState!!)
         Log.d(TAG, "onAttendeesJoined" + callingState.toString() + currentRoster.size)
         notificationUserJoin?.invoke(currentRosters)
     }
@@ -436,22 +629,40 @@ class ChimeView @JvmOverloads constructor(
 
     override fun onAttendeesLeft(attendeeInfo: Array<AttendeeInfo>) {
         Log.d(TAG, "onAttendeesLeft: ")
+        memberJoined -= attendeeInfo.size
+        // xóa currentRoster
         attendeeInfo.forEach { (attendeeId, _) ->
             currentRoster.remove(attendeeId)
         }
+        // set lại currentRosters
         currentRosters.clear()
         currentRoster.forEach { (_, roster) ->
             Log.d(TAG, "xxxxxxxxx " + roster.attendeeName)
             currentRosters.add(roster)
+        }
+        // Khi một thằng rời đi -> kiểm tra thằng nào rời. có phải là thằng đang hiển thị video không
+        attendeeInfo.forEach {
+            if (it.attendeeId == focusAttendee?.attendeeId) {
+                if (currentRosters.size > 1) {
+                    // gán focusAttendee khi còn trên 2 người trong room
+                    focusAttendee = currentRosters[1]
+                    showChime()
+                } else {
+                    // gán focusAttendee khi còn đúng bản thân trong room
+                    focusAttendee = currentRosters[0]
+                    showChime()
+                }
+                return@forEach
+            }
         }
         notificationUserJoin?.invoke(currentRosters)
     }
 
     override fun onAttendeesMuted(attendeeInfo: Array<AttendeeInfo>) {
         attendeeInfo.forEach {
-            if (it.attendeeId == callingState.idAttendee) {
-                callingState.isSpeaking = callingState.isSpeaking.not()
-                updateCallingState?.invoke(callingState)
+            if (it.attendeeId == callingState?.idAttendee) {
+                callingState?.isSpeaking = callingState?.isSpeaking?.not()!!
+                updateCallingState?.invoke(callingState!!)
                 Log.d(TAG, "onAttendeesMuted: $callingState")
             }
         }
@@ -460,9 +671,9 @@ class ChimeView @JvmOverloads constructor(
 
     override fun onAttendeesUnmuted(attendeeInfo: Array<AttendeeInfo>) {
         attendeeInfo.forEach {
-            if (it.attendeeId == callingState.idAttendee) {
-                callingState.isSpeaking = callingState.isSpeaking.not()
-                updateCallingState?.invoke(callingState)
+            if (it.attendeeId == callingState?.idAttendee) {
+                callingState?.isSpeaking = callingState?.isSpeaking?.not()!!
+                updateCallingState?.invoke(callingState!!)
                 Log.d(TAG, "onAttendeesUnmuted: $callingState")
             }
         }
@@ -491,6 +702,26 @@ class ChimeView @JvmOverloads constructor(
 
     override fun onAudioSessionStartedConnecting(reconnecting: Boolean) {
         Log.d(TAG, "onAudioSessionStartedConnecting: ")
+//        val inforMeeting = SharedPreferencesManager.getInstance(this.context)
+//            .getObject(SharePreferenceKey.RESPONSE, Response::class.java)
+//        inforMeeting?.let {
+//            callingState = CallingState(
+//                getAttendeeName(
+//                    it.joinInfo.attendee.attendee.attendeeId,
+//                    it.joinInfo.attendee.attendee.externalUserId
+//                ), it.joinInfo.attendee.attendee.attendeeId
+//            )
+//            currentRosters.add(
+//                RosterAttendee(
+//                    inforMeeting.joinInfo.attendee.attendee.externalUserId,
+//                    getAttendeeName(
+//                        it.joinInfo.attendee.attendee.attendeeId,
+//                        it.joinInfo.attendee.attendee.externalUserId
+//                    )
+//                )
+//            )
+//            notificationUserJoin?.invoke(currentRosters)
+//        }
     }
 
     override fun onAudioSessionStopped(sessionStatus: MeetingSessionStatus) {
@@ -534,7 +765,7 @@ class ChimeView @JvmOverloads constructor(
         chimeContainer = chimeLayout.findViewById(R.id.chime_meeting_room_container)
         localVideo = chimeLayout.findViewById(R.id.localVideo)
         icMoveView = chimeLayout.findViewById(R.id.icMoveView)
-        slideCustomView = chimeLayout.findViewById(R.id.slideCustomView)
+//        slideCustomView = chimeLayout.findViewById(R.id.slideCustomView)
         btnSpeaker = chimeLayout.findViewById(R.id.btnSpeaker)
         swipeCamera = chimeLayout.findViewById(R.id.swipe_camera)
         icClose = chimeLayout.findViewById(R.id.icClose)
@@ -543,14 +774,24 @@ class ChimeView @JvmOverloads constructor(
         emojiCurrentUserWhenTurnOffCamera =
             chimeLayout.findViewById(R.id.emojiCurrentUserWhenTurnOffCamera)
         containerLocalVideo = chimeLayout.findViewById(R.id.containerLocalVideo)
+        invisibleCamera = chimeLayout.findViewById(R.id.invisibleCamera)
+//        constraintLayoutMove = chimeLayout.findViewById(R.id.constraintLayoutMove)
+        rcSlide = chimeLayout.findViewById(R.id.rcSlide)
 
         renderViewLayout = inflater.inflate(R.layout.chime_view, chimeContainer, true)
         renderViewLocalLayout = inflater.inflate(R.layout.chime_view_2, localVideo, true)
         localRenderView = renderViewLocalLayout.findViewById(R.id.chime_2)
 
         // inflater customView slider add ViewSlide
-        userJoinedView = inflater.inflate(R.layout.view_users_joined, slideCustomView, true)
-        rcUsersJoined = userJoinedView.findViewById(R.id.rcUsersJoined)
+//        userJoinedView = inflater.inflate(R.layout.view_users_joined, slideCustomView, true)
+//        rcUsersJoined = userJoinedView.findViewById(R.id.rcUsersJoined)
+
+        getDisplayValue()
+    }
+
+    private fun getDisplayValue() {
+        positionEmojiX = emojiCurrentUser.left.toFloat()
+        positionEmojiY = emojiCurrentUser.top.toFloat()
     }
 
     private fun setUpConfig() {
@@ -561,4 +802,25 @@ class ChimeView @JvmOverloads constructor(
     override fun onClickListener(position: Int) {
 //        Toast.makeText(context  ,position, Toast.LENGTH_SHORT).show()
     }
+
+    fun displayEmoji(imageView: ImageView, data: String) {
+        with(imageView) {
+            setImageResource(
+                when (data) {
+                    "0x1F44C" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f44c)
+                    "0x1F44D" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f44d)
+                    "0x1F44E" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f44e)
+                    "0x1F44F" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f44f)
+                    "0x1F600" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f600)
+                    "0x1F60D" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f60d)
+                    "0x1F620" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f621)
+                    "0x1F628" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f628)
+                    "0x1F914" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f914)
+                    else -> (R.drawable.react_features_conference_components_customize_noto_image_sets_270b)
+                }
+            )
+        }
+    }
 }
+
+data class ChannelData(val openCamera: Boolean, val openMic: Boolean)
