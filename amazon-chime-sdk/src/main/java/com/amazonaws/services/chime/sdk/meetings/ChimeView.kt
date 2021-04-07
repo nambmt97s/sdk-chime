@@ -16,11 +16,13 @@ import androidx.fragment.app.FragmentManager
 import androidx.recyclerview.widget.RecyclerView
 import com.amazonaws.services.chime.sdk.R
 import com.amazonaws.services.chime.sdk.meetings.adapter.UserJoinedAdapter
-import com.amazonaws.services.chime.sdk.meetings.audiovideo.*
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.* // ktlint-disable
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.DefaultVideoRenderView
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoTileObserver
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.VideoTileState
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultCameraCaptureSource
+import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultSurfaceTextureCaptureSourceFactory
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.DefaultEglCoreFactory
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.EglCoreFactory
 import com.amazonaws.services.chime.sdk.meetings.data.CallingState
@@ -33,8 +35,7 @@ import com.amazonaws.services.chime.sdk.meetings.dialog.AudioSelectDialog
 import com.amazonaws.services.chime.sdk.meetings.dialog.OnItemBottomClickListener
 import com.amazonaws.services.chime.sdk.meetings.internal.utils.CpuVideoProcessor
 import com.amazonaws.services.chime.sdk.meetings.realtime.RealtimeObserver
-import com.amazonaws.services.chime.sdk.meetings.session.MeetingSession
-import com.amazonaws.services.chime.sdk.meetings.session.MeetingSessionStatus
+import com.amazonaws.services.chime.sdk.meetings.session.* // ktlint-disable
 import com.amazonaws.services.chime.sdk.meetings.sharepreference.SharePreferenceKey
 import com.amazonaws.services.chime.sdk.meetings.sharepreference.SharedPreferencesManager
 import com.amazonaws.services.chime.sdk.meetings.utils.Convert
@@ -42,10 +43,21 @@ import com.amazonaws.services.chime.sdk.meetings.utils.DefaultModality
 import com.amazonaws.services.chime.sdk.meetings.utils.ModalityType
 import com.amazonaws.services.chime.sdk.meetings.utils.logger.ConsoleLogger
 import com.amazonaws.services.chime.sdk.meetings.utils.logger.LogLevel
+import com.google.gson.Gson
+import com.nam.chime_sdk.data.JoinMeetingResponse
 import com.nam.demochime.utils.GpuVideoProcessor
 import com.vanniktech.emoji.EmojiManager
 import com.vanniktech.emoji.google.GoogleEmojiProvider
-import java.util.*
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+import java.util.* // ktlint-disable
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ChimeView @JvmOverloads constructor(
     context: Context,
@@ -68,12 +80,14 @@ class ChimeView @JvmOverloads constructor(
     private var callingState: CallingState? = null
     private lateinit var audioDevices: List<MediaDevice>
     private lateinit var audioSelectDialog: AudioSelectDialog
-    private lateinit var setUpAudio: SetUpAudio
+
+    //    private lateinit var setUpAudio: SetUpAudio
     private var memberJoined = 0
     private var channelData: ChannelData = ChannelData(openCamera = true, openMic = true)
     private var focusAttendee: RosterAttendee? = null
     private var initFocusVideo = true
     private var inforMeeting: Response? = null
+    private val gson = Gson()
 
     private val logger = ConsoleLogger(LogLevel.DEBUG)
     private val TAG: String = "XXXXX"
@@ -114,17 +128,8 @@ class ChimeView @JvmOverloads constructor(
     private var firstTimeSet = true
 
     init {
-        memberJoined++
         EmojiManager.install(GoogleEmojiProvider())
-        inforMeeting = SharedPreferencesManager.getInstance(this.context)
-            .getObject(SharePreferenceKey.RESPONSE, Response::class.java)
         inflateView()
-        setUpBegin()
-        handleMoveView()
-        handleChooseAudio()
-        handleSwipeCamera()
-        handleClickLocalVideo()
-        handleClickUser()
     }
 
     private fun handleClickUser() {
@@ -217,10 +222,10 @@ class ChimeView @JvmOverloads constructor(
     }
 
     private fun setUpBegin() {
-        setUpAudio = SetUpAudio.getInstance()
-        meetingSession = setUpAudio.meetingSession()
+//        setUpAudio = SetUpAudio.getInstance()
+//        meetingSession = setUpAudio.meetingSession()
         audioVideo = meetingSession!!.audioVideo
-        cameraCaptureSource = setUpAudio.getCameraCaptureSource()
+//        cameraCaptureSource = setUpAudio.getCameraCaptureSource()
         callingState = CallingState()
         audioDevices = audioVideo.listAudioDevices()
         audioSelectDialog = AudioSelectDialog(audioDevices, this)
@@ -344,7 +349,132 @@ class ChimeView @JvmOverloads constructor(
         updateCallingState?.invoke(callingState!!)
     }
 
+    private fun urlReWriter(url: String): String {
+        // You can change urls by url.replace("example.com", "my.example.com")
+        return url
+    }
+
+    private suspend fun joinMeeting(
+        meetingUrl: String,
+        meetingId: String?,
+        attendeeName: String?,
+        MEETING_REGION: String
+    ): String? {
+        return withContext(Dispatchers.IO) {
+            val url = if (meetingUrl.endsWith("/")) meetingUrl else "$meetingUrl/"
+            val serverUrl =
+                URL(
+                    "${url}join?title=${encodeURLParam(meetingId)}&name=${encodeURLParam(
+                        attendeeName
+                    )}&region=${encodeURLParam(MEETING_REGION)}"
+                )
+            try {
+                val response = StringBuffer()
+                with(serverUrl.openConnection() as HttpURLConnection) {
+                    requestMethod = "POST"
+                    doInput = true
+                    doOutput = true
+
+                    BufferedReader(InputStreamReader(inputStream)).use {
+                        var inputLine = it.readLine()
+                        while (inputLine != null) {
+                            response.append(inputLine)
+                            inputLine = it.readLine()
+                        }
+                        it.close()
+                    }
+
+                    if (responseCode == 201) {
+                        Log.d("response.toString()", response.toString())
+                        response.toString()
+                    } else {
+                        Log.d("TAG", "Unable to join meeting. Response code: $responseCode")
+                        null
+                    }
+                }
+            } catch (exception: Exception) {
+                Log.d("TAG", "There was an exception while joining the meeting: $exception")
+                null
+            }
+        }
+    }
+
+    private fun encodeURLParam(string: String?): String {
+        return URLEncoder.encode(string, "utf-8")
+    }
+
+    private fun sendInformation(
+        meetingIdEditText: String,
+        nameEditText: String,
+        region: String,
+        applicationContext: Context
+    ) {
+        CoroutineScope(Dispatchers.Main).launch {
+            val response = joinMeeting(
+                " https://calling-chime-demo.dev.calling.fun/",
+                meetingIdEditText,
+                nameEditText,
+                region
+            )
+            if (response != null) {
+                Log.d("XXXXX", "Thông tin phòng đúng ")
+                val joinMeetingResponse = gson.fromJson(response, JoinMeetingResponse::class.java)
+                val sessionConfig = MeetingSessionConfiguration(
+                    CreateMeetingResponse(joinMeetingResponse.joinInfo.meetingResponse.meeting),
+                    CreateAttendeeResponse(joinMeetingResponse.joinInfo.attendeeResponse.attendee),
+                    ::urlReWriter
+                )
+                meetingSession = sessionConfig.let {
+                    Log.d("TAG", "Creating meeting session for meeting Id: $meetingIdEditText")
+                    DefaultMeetingSession(
+                        it,
+                        logger,
+                        applicationContext,
+                        eglCoreFactory
+                    )
+                }
+
+                val surfaceTextureCaptureSourceFactory =
+                    DefaultSurfaceTextureCaptureSourceFactory(logger, eglCoreFactory)
+                cameraCaptureSource = DefaultCameraCaptureSource(
+                    applicationContext,
+                    logger,
+                    surfaceTextureCaptureSourceFactory
+                )
+                Log.d("TAG", "meetingSession: $meetingSession")
+                cpuVideoProcessor = CpuVideoProcessor(logger, eglCoreFactory)
+                gpuVideoProcessor = GpuVideoProcessor(logger, eglCoreFactory)
+                val result = gson.fromJson<Response>(response, Response::class.java)
+                SharedPreferencesManager.getInstance(applicationContext)
+                    .putObject(SharePreferenceKey.RESPONSE, result)
+                initChimeView?.invoke()
+                Log.d("xxxxx", "Response:: $result")
+            } else {
+                Log.d("XXXXX", "Thông tin phòng sai ")
+            }
+        }
+    }
+
+    var initChimeView: (() -> Unit)? = null
+
     fun join(chimeMeetConferenceOptions: ChimeMeetConferenceOptions) {
+        sendInformation(
+            chimeMeetConferenceOptions.room!!,
+            chimeMeetConferenceOptions.name!!,
+            chimeMeetConferenceOptions.region!!,
+            this.context
+        )
+        initChimeView = {
+            memberJoined++
+            inforMeeting = SharedPreferencesManager.getInstance(this.context)
+                .getObject(SharePreferenceKey.RESPONSE, Response::class.java)
+            setUpBegin()
+            handleMoveView()
+            handleChooseAudio()
+            handleSwipeCamera()
+            handleClickLocalVideo()
+            handleClickUser()
+        }
     }
 
     private fun subscribeListener() {
@@ -407,16 +537,6 @@ class ChimeView @JvmOverloads constructor(
                         it.joinInfo.attendee.attendee.externalUserId
                     ), it.joinInfo.attendee.attendee.attendeeId
                 )
-//                currentRosters.add(
-//                    RosterAttendee(
-//                        inforMeeting.joinInfo.attendee.attendee.externalUserId,
-//                        getAttendeeName(
-//                            it.joinInfo.attendee.attendee.attendeeId,
-//                            it.joinInfo.attendee.attendee.externalUserId
-//                        )
-//                    )
-//                )
-//                notificationUserJoin?.invoke(currentRosters)
             }
         }
         if (videoCollectionTile.videoTileState.isLocalTile) {
@@ -474,6 +594,7 @@ class ChimeView @JvmOverloads constructor(
         }
         // khi có >1 người join
         if (memberJoined > 1) {
+            invisibleCamera.visibility = View.GONE
             // show container LocalVideo
             showContainerLocalMiniSize()
             var isHaveRemoteVideo = false
@@ -640,6 +761,20 @@ class ChimeView @JvmOverloads constructor(
             Log.d(TAG, "xxxxxxxxx " + roster.attendeeName)
             currentRosters.add(roster)
         }
+
+        /*
+        sort currentRosters
+        */
+        currentRosters.forEachIndexed { index, currentRoster ->
+            if (currentRoster.attendeeId == inforMeeting?.joinInfo?.attendee?.attendee?.attendeeId) {
+                if (index == 0) return@forEachIndexed
+                else {
+                    Collections.swap(currentRosters, 0, index)
+                    return@forEachIndexed
+                }
+            }
+        }
+
         // Khi một thằng rời đi -> kiểm tra thằng nào rời. có phải là thằng đang hiển thị video không
         attendeeInfo.forEach {
             if (it.attendeeId == focusAttendee?.attendeeId) {

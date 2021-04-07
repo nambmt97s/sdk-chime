@@ -5,7 +5,7 @@
 
 package com.amazonaws.services.chime.sdkdemo.activity
 
-import android.Manifest
+import android.Manifest // ktlint-disable
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -22,11 +22,11 @@ import com.amazonaws.services.chime.sdk.meetings.utils.logger.LogLevel
 import com.amazonaws.services.chime.sdkdemo.JoinMeetingActivity
 import com.amazonaws.services.chime.sdkdemo.R
 import com.amazonaws.services.chime.sdkdemo.utils.encodeURLParam
+import kotlinx.coroutines.* // ktlint-disable
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
-import java.net.URL // ktlint-disable
-import kotlinx.coroutines.* // ktlint-disable
+import java.net.URL
 
 class HomeActivity : AppCompatActivity() {
     private val logger = ConsoleLogger(LogLevel.INFO)
@@ -86,6 +86,8 @@ class HomeActivity : AppCompatActivity() {
             )
             setUpAudio?.startActivityMeeting = {
                 val intent = Intent(this, JoinMeetingActivity::class.java)
+                intent.putExtra("meetingId", meetingEditText?.text.toString())
+                intent.putExtra("name", nameEditText?.text.toString())
                 startActivity(intent)
             }
         } else {

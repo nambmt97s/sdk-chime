@@ -3,28 +3,20 @@ package com.amazonaws.services.chime.sdk.meetings
 import android.content.Context
 import android.util.Log
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.CameraCaptureSource
-import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultCameraCaptureSource
-import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.capture.DefaultSurfaceTextureCaptureSourceFactory
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.DefaultEglCoreFactory
 import com.amazonaws.services.chime.sdk.meetings.audiovideo.video.gl.EglCoreFactory
-import com.amazonaws.services.chime.sdk.meetings.data.response.Response
 import com.amazonaws.services.chime.sdk.meetings.internal.utils.CpuVideoProcessor
 import com.amazonaws.services.chime.sdk.meetings.session.* // ktlint-disable
-import com.amazonaws.services.chime.sdk.meetings.sharepreference.SharePreferenceKey
-import com.amazonaws.services.chime.sdk.meetings.sharepreference.SharedPreferencesManager
 import com.amazonaws.services.chime.sdk.meetings.utils.logger.ConsoleLogger
 import com.amazonaws.services.chime.sdk.meetings.utils.logger.LogLevel
 import com.google.gson.Gson
-import com.nam.chime_sdk.data.JoinMeetingResponse
 import com.nam.demochime.utils.GpuVideoProcessor
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class SetUpAudio {
@@ -45,50 +37,52 @@ class SetUpAudio {
         region: String,
         applicationContext: Context
     ) {
-        CoroutineScope(Dispatchers.Main).launch {
-            val response = joinMeeting(
-                " https://calling-chime-demo.dev.calling.fun/",
-                meetingIdEditText,
-                nameEditText,
-                region
-            )
-            if (response != null) {
-                Log.d("XXXXX", "Thông tin phòng đúng ")
-                val joinMeetingResponse = gson.fromJson(response, JoinMeetingResponse::class.java)
-                val sessionConfig = MeetingSessionConfiguration(
-                    CreateMeetingResponse(joinMeetingResponse.joinInfo.meetingResponse.meeting),
-                    CreateAttendeeResponse(joinMeetingResponse.joinInfo.attendeeResponse.attendee),
-                    ::urlReWriter
-                )
-                meetingSession = sessionConfig.let {
-                    Log.d("TAG", "Creating meeting session for meeting Id: $meetingIdEditText")
-                    DefaultMeetingSession(
-                        it,
-                        logger,
-                        applicationContext,
-                        eglCoreFactory
-                    )
-                }
-                setMeetingSession(meetingSession!!)
-                val surfaceTextureCaptureSourceFactory =
-                    DefaultSurfaceTextureCaptureSourceFactory(logger, eglCoreFactory)
-                cameraCaptureSource = DefaultCameraCaptureSource(
-                    applicationContext,
-                    logger,
-                    surfaceTextureCaptureSourceFactory
-                )
-                setCameraCaptureSource(cameraCaptureSource)
-                Log.d("TAG", "meetingSession: $meetingSession")
-                cpuVideoProcessor = CpuVideoProcessor(logger, eglCoreFactory)
-                gpuVideoProcessor = GpuVideoProcessor(logger, eglCoreFactory)
-                startActivityMeeting?.invoke()
-                val result = Gson().fromJson<Response>(response, Response::class.java)
-                SharedPreferencesManager.getInstance(applicationContext).putObject(SharePreferenceKey.RESPONSE, result)
-                Log.d("xxxxx", "Response:: $result")
-            } else {
-                Log.d("XXXXX", "Thông tin phòng sai ")
-            }
-        }
+        startActivityMeeting?.invoke()
+
+//        CoroutineScope(Dispatchers.Main).launch {
+//            val response = joinMeeting(
+//                " https://calling-chime-demo.dev.calling.fun/",
+//                meetingIdEditText,
+//                nameEditText,
+//                region
+//            )
+//            if (response != null) {
+//                Log.d("XXXXX", "Thông tin phòng đúng ")
+//                val joinMeetingResponse = gson.fromJson(response, JoinMeetingResponse::class.java)
+//                val sessionConfig = MeetingSessionConfiguration(
+//                    CreateMeetingResponse(joinMeetingResponse.joinInfo.meetingResponse.meeting),
+//                    CreateAttendeeResponse(joinMeetingResponse.joinInfo.attendeeResponse.attendee),
+//                    ::urlReWriter
+//                )
+//                meetingSession = sessionConfig.let {
+//                    Log.d("TAG", "Creating meeting session for meeting Id: $meetingIdEditText")
+//                    DefaultMeetingSession(
+//                        it,
+//                        logger,
+//                        applicationContext,
+//                        eglCoreFactory
+//                    )
+//                }
+//                setMeetingSession(meetingSession!!)
+//                val surfaceTextureCaptureSourceFactory =
+//                    DefaultSurfaceTextureCaptureSourceFactory(logger, eglCoreFactory)
+//                cameraCaptureSource = DefaultCameraCaptureSource(
+//                    applicationContext,
+//                    logger,
+//                    surfaceTextureCaptureSourceFactory
+//                )
+//                setCameraCaptureSource(cameraCaptureSource)
+//                Log.d("TAG", "meetingSession: $meetingSession")
+//                cpuVideoProcessor = CpuVideoProcessor(logger, eglCoreFactory)
+//                gpuVideoProcessor = GpuVideoProcessor(logger, eglCoreFactory)
+//                startActivityMeeting?.invoke()
+//                val result = Gson().fromJson<Response>(response, Response::class.java)
+//                SharedPreferencesManager.getInstance(applicationContext).putObject(SharePreferenceKey.RESPONSE, result)
+//                Log.d("xxxxx", "Response:: $result")
+//            } else {
+//                Log.d("XXXXX", "Thông tin phòng sai ")
+//            }
+//        }
     }
 
     private fun setCameraCaptureSource(cameraCaptureSource: CameraCaptureSource) {

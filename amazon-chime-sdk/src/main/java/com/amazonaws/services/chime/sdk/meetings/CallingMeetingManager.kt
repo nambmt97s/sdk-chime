@@ -14,7 +14,7 @@ class CallingMeetingManager(private val chimeView: ChimeView) {
     }
 
     fun setConfigChange(bundle: Bundle) {
-        chimeView.join(bundle)
+//        chimeView.join(bundle)
     }
 
     fun setConfigMuteChange(check: Boolean) {

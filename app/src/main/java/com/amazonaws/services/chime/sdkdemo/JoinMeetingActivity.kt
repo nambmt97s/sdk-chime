@@ -13,26 +13,35 @@ class JoinMeetingActivity : AppCompatActivity() {
     private lateinit var micButton: ImageView
     private lateinit var videoButton: ImageView
     private lateinit var actionMore: ImageView
+    private val MEETING_REGION = "us-east-1"
+    private var meetingId: String? = null
+    private var name: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_join_meeting)
+        getData()
         initView()
         initChimeView()
+    }
+
+    private fun getData() {
+        meetingId = intent.getStringExtra("meetingId")
+        name = intent.getStringExtra("name")
     }
 
     private fun initChimeView() {
         val chime = ChimeView(this)
         val chimeMeetConferenceOptions = ChimeMeetConferenceOptions.Builder()
             .setServerURL("")
-            .setRoom("")
+            .setRoom(meetingId!!)
+            .setName(name!!)
+            .setRegion(MEETING_REGION)
             .setAudioMuted(false)
             .setVideoMuted(true)
             .build()
         chime.join(chimeMeetConferenceOptions)
         chimeView.addView(chime)
-
-
     }
 
     private fun initView() {

@@ -29,12 +29,13 @@ class UserJoinedAdapter(private val users: List<RosterAttendee>) :
     }
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
-         var imgAvatarUser: ImageView = itemView.findViewById(R.id.imgAvatarUser)
-         var tvUserName: TextView = itemView.findViewById(R.id.tvUserName)
+        var imgAvatarUser: ImageView = itemView.findViewById(R.id.imgAvatarUser)
+        var tvUserName: TextView = itemView.findViewById(R.id.tvUserName)
 
         fun bind(user: RosterAttendee) {
             tvUserName.text = user.attendeeName
         }
     }
-    var userClickListener: ((RosterAttendee) -> Unit) ? = null
+
+    var userClickListener: ((RosterAttendee) -> Unit)? = null
 }
