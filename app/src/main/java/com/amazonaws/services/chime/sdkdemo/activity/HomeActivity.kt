@@ -48,7 +48,8 @@ class HomeActivity : AppCompatActivity() {
     private var authenticationProgressBar: ProgressBar? = null
     private var meetingID: String? = null
     private var yourName: String? = null
-    private var setUpAudio: SetUpAudio ? = null
+    private var setUpAudio: SetUpAudio? = null
+
     companion object {
         const val MEETING_RESPONSE_KEY = "MEETING_RESPONSE"
         const val MEETING_ID_KEY = "MEETING_ID"
@@ -62,7 +63,9 @@ class HomeActivity : AppCompatActivity() {
         meetingEditText = findViewById(R.id.editMeetingId)
         nameEditText = findViewById(R.id.editName)
         authenticationProgressBar = findViewById(R.id.progressAuthentication)
-
+        if (hasPermissionsAlready()) {
+            joinMeeting()
+        }
         findViewById<ImageButton>(R.id.buttonContinue)?.setOnClickListener { joinMeeting() }
 
         val versionText: TextView = findViewById<TextView>(R.id.versionText)
@@ -150,7 +153,10 @@ class HomeActivity : AppCompatActivity() {
                 "Joining meeting. meetingUrl: $meetingUrl, meetingId: $meetingId, attendeeName: $attendeeName"
             )
             if (!meetingUrl.startsWith("http")) {
-                showToast(applicationContext, getString(R.string.user_notification_meeting_url_error))
+                showToast(
+                    applicationContext,
+                    getString(R.string.user_notification_meeting_url_error)
+                )
             } else {
                 authenticationProgressBar?.visibility = View.VISIBLE
                 val meetingResponseJson: String? = joinMeeting(meetingUrl, meetingId, attendeeName)
@@ -158,7 +164,10 @@ class HomeActivity : AppCompatActivity() {
                 authenticationProgressBar?.visibility = View.INVISIBLE
 
                 if (meetingResponseJson == null) {
-                    showToast(applicationContext, getString(R.string.user_notification_meeting_start_error))
+                    showToast(
+                        applicationContext,
+                        getString(R.string.user_notification_meeting_start_error)
+                    )
                 } else {
 
                     val intent = Intent(applicationContext, MeetingActivity::class.java)

@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/subViewVideo"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mainChimeLayout"
     android:layout_width="match_parent"
-    android:background="@color/purple_700"
+    android:background="@color/grey"
     android:clipChildren="false"
     android:clipToPadding="false"
     android:layout_height="match_parent">
@@ -31,25 +32,25 @@
         android:id="@+id/containerLocalVideo"
         android:layout_width="160dp"
         android:layout_height="100dp"
-        android:layout_marginEnd="20dp"
         android:layout_above="@id/viewSpace"
         android:layout_alignParentRight="true"
-        android:animateLayoutChanges="true"
+        android:layout_marginEnd="20dp"
+        android:background="@color/black"
         android:layout_marginBottom="100dp"
-        android:visibility="visible">
+        android:visibility="visible"
+        tools:visibility="gone">
 
         <RelativeLayout
             android:id="@+id/localVideo"
             android:layout_width="160dp"
-            android:layout_height="100dp"
-            android:animateLayoutChanges="true" />
+            android:layout_height="100dp" />
 
         <ImageView
             android:id="@+id/emojiCurrentUser"
             android:layout_width="20dp"
             android:layout_height="20dp"
-            android:layout_marginTop="10dp"
             android:layout_marginStart="5dp"
+            android:layout_marginTop="10dp"
             android:background="@color/black" />
     </RelativeLayout>
 
@@ -132,6 +133,20 @@
         android:layout_toRightOf="@id/viewSpace2"
         android:orientation="vertical"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+    <RelativeLayout
+        android:id="@+id/test"
+        android:layout_width="160dp"
+        android:layout_height="100dp"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginEnd="20dp"
+        android:layout_marginBottom="100dp"
+        android:background="@drawable/close_button"
+        android:visibility="gone">
+
+    </RelativeLayout>
+
 
 
 </RelativeLayout>

@@ -18,11 +18,11 @@ class CallingMeetingManager(private val chimeView: ChimeView) {
     }
 
     fun setConfigMuteChange(check: Boolean) {
-        chimeView.setConfigMuteChange(check)
+//        chimeView.setConfigMuteChange(check)
     }
 
     fun setConfigVideoChange(check: Boolean) {
-        chimeView.setConfigVideoChange(check)
+//        chimeView.setConfigVideoChange(check)
     }
 
     fun sendEmojiPath(path: String) {
