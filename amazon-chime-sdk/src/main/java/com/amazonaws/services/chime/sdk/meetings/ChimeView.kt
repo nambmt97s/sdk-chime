@@ -1,6 +1,7 @@
 package com.amazonaws.services.chime.sdk.meetings
 
 import android.content.Context
+import android.os.Handler
 import android.util.AttributeSet
 import android.util.DisplayMetrics
 import android.util.Log
@@ -175,14 +176,21 @@ class ChimeView @JvmOverloads constructor(
         }
     }
 
+    private fun delayShow() {
+        val handler = Handler()
+        handler.postDelayed({
+            showContainerLocalMiniSize()
+        }, 200)
+    }
+
     private fun handleClickLocalVideo() {
         val layoutParamsContainerLocalVideo =
             containerLocalVideo.layoutParams as RelativeLayout.LayoutParams
         val layoutParamsEmoji = emojiCurrentUser.layoutParams as RelativeLayout.LayoutParams
-        val layoutParamsLocalVideo = localVideo.layoutParams as RelativeLayout.LayoutParams
         containerLocalVideo.setOnClickListener {
             if (!isOpenRelativeLayoutLocalVideo) {
-                localRenderView.layoutParams = layoutParamsMaxParentRelativeLayout
+                hideContainerLocalMiniSize()
+                containerLocalVideo.visibility = View.GONE
                 containerLocalVideo.layoutParams = layoutParamsMaxParentRelativeLayout
                 localVideo.layoutParams = layoutParamsMaxParentRelativeLayout
                 emojiCurrentUser.x = emoji.left.toFloat()
@@ -193,16 +201,18 @@ class ChimeView @JvmOverloads constructor(
             icClose.visibility = View.VISIBLE
             containerLocalVideo.isClickable = false
             isOpenRelativeLayoutLocalVideo = !isOpenRelativeLayoutLocalVideo
+            delayShow()
         }
         icClose.setOnClickListener {
+            hideContainerLocalMiniSize()
             if (isOpenRelativeLayoutLocalVideo) {
                 resetTranslationZ() // reset lại translationZ khi containerLocal matchParent và đã ngừng hiển thị localVideo
                 containerLocalVideo.layoutParams = layoutParamsContainerLocalVideo
-
                 if (!channelData!!.openCamera) {
                     hideContainerLocalMiniSize()
+                } else {
+                    delayShow()
                 }
-                showChime() // chạy lại chime
             }
             emojiCurrentUser.layoutParams = layoutParamsEmoji
             icClose.visibility = View.GONE
