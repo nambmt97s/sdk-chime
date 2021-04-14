@@ -7,10 +7,12 @@ import android.util.DisplayMetrics
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.RelativeLayout
+import androidx.core.view.children
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentManager
 import androidx.recyclerview.widget.RecyclerView
@@ -80,6 +82,7 @@ class ChimeView @JvmOverloads constructor(
     private var callingState: CallingState? = null
     private lateinit var audioDevices: List<MediaDevice>
     private lateinit var audioSelectDialog: AudioSelectDialog
+    private var STATUS_DISPLAY = 1
 
     //    private lateinit var setUpAudio: SetUpAudio
     private var memberJoined = 0
@@ -98,6 +101,7 @@ class ChimeView @JvmOverloads constructor(
     private var renderViewLayout: View? = null
     private lateinit var renderViewLocalLayout: View
     private lateinit var icMoveView: ImageView
+    private lateinit var viewCorner: View
 
     //    private lateinit var slideCustomView: SlideCustomView
     private lateinit var localRenderView: DefaultVideoRenderView
@@ -180,26 +184,105 @@ class ChimeView @JvmOverloads constructor(
         val handler = Handler()
         handler.postDelayed({
             showContainerLocalMiniSize()
-        }, 200)
+        }, 50)
     }
 
+    private var dataEmoji: String = ""
+    private var updateEmoji: (() -> Unit)? = null
+
+    fun updateEmoji() {
+        updateEmoji = {
+            sendReaction(dataEmoji)
+        }
+    }
+
+    fun sendReaction(data: String) {
+        resetReaction()
+        dataEmoji = data
+        when (STATUS_DISPLAY) {
+            ONLY_LOCAL -> displayEmoji(imageView = emoji, data = data)
+            BOTH_MINI_SIZE_LOCAL_TURN_OFF_AND_REMOTE -> displayEmoji(
+                imageView = emojiCurrentUserWhenTurnOffCamera,
+                data = data
+            )
+            BOTH_FULL_SIZE_LOCAL_AND_REMOTE_ -> displayEmoji(imageView = emoji, data = data)
+            BOTH_MINI_SIZE_LOCAL_AND_REMOTE_ -> displayEmoji(
+                imageView = emojiCurrentUser,
+                data = data
+            )
+        }
+    }
+
+    private fun resetReaction() {
+        emoji.setImageResource(0)
+        emojiCurrentUserWhenTurnOffCamera.setImageResource(0)
+        emojiCurrentUser.setImageResource(0)
+    }
+
+    private fun View.setAllEnabled(enabled: Boolean) {
+        isEnabled = enabled
+        if (this is ViewGroup) children.forEach { child -> child.setAllEnabled(enabled) }
+    }
+
+    private fun getParams(view: View) =
+        listOfParams(
+            width = view.width,
+            height = view.height,
+            x = view.x,
+            y = view.y,
+            right = view.right,
+            left = view.left,
+            top = view.top,
+            bottom = view.bottom
+        )
+
+    private fun listOfParams(
+        width: Int,
+        height: Int,
+        x: Float,
+        y: Float,
+        right: Int,
+        left: Int,
+        top: Int,
+        bottom: Int
+    ) =
+        listOf(width, height, x, y, right, left, top, bottom)
+
+    operator fun <T> List<T>.component6(): T = get(5)
+    operator fun <T> List<T>.component7(): T = get(6)
+    operator fun <T> List<T>.component8(): T = get(7)
+
     private fun handleClickLocalVideo() {
-        val layoutParamsContainerLocalVideo =
-            containerLocalVideo.layoutParams as RelativeLayout.LayoutParams
-        val layoutParamsEmoji = emojiCurrentUser.layoutParams as RelativeLayout.LayoutParams
+        val (emojiCurrentWidth, emojiCurrentHeight, emojiCurrentX, emojiCurrentY, emojiCurrentRight, emojiCurrentLeft, emojiCurrentTop, emojiCurrentBottom) =
+                getParams(emojiCurrentUser)
+        val (emojiWidth, emojiHeight, emojiX, emojiY, emojiRight, emojiLeft, emojiTop, emojiBottom) =
+                getParams(emojiCurrentUser)
+        val lp = RelativeLayout.LayoutParams(
+            RelativeLayout.LayoutParams.MATCH_PARENT,
+            RelativeLayout.LayoutParams.MATCH_PARENT
+        )
+        lp.setMargins(0, 0, 0, 0)
+        val layoutParamsContainerLocalVideo = containerLocalVideo.layoutParams
+
+        val vlp = emojiCurrentUser.layoutParams as MarginLayoutParams
+        val layoutParamsViewCorner = localRenderView.layoutParams
+        val layoutParamsEmoji = emojiCurrentUser.layoutParams
         containerLocalVideo.setOnClickListener {
+            STATUS_DISPLAY = BOTH_FULL_SIZE_LOCAL_AND_REMOTE_
             if (!isOpenRelativeLayoutLocalVideo) {
                 hideContainerLocalMiniSize()
-                containerLocalVideo.visibility = View.GONE
                 containerLocalVideo.layoutParams = layoutParamsMaxParentRelativeLayout
                 localVideo.layoutParams = layoutParamsMaxParentRelativeLayout
-                emojiCurrentUser.x = emoji.left.toFloat()
-                emojiCurrentUser.y = emoji.top.toFloat()
-                emojiCurrentUser.layoutParams.width = emoji.width
-                emojiCurrentUser.layoutParams.height = emoji.height
+                localRenderView.layoutParams = lp // set lại layoutParams cho localLayout Params
+                emojiCurrentUser.x = emojiLeft.toString().toFloat()
+                emojiCurrentUser.y = emojiTop.toString().toFloat()
+                emojiCurrentUser.layoutParams.width = emojiWidth.toString().toInt()
+                emojiCurrentUser.layoutParams.height = emojiHeight.toString().toInt()
+                containerLocalVideo.setAllEnabled(false) // hủy sự kiện click localVideo
+                updateEmoji?.invoke() // update emoji
             }
             icClose.visibility = View.VISIBLE
-            containerLocalVideo.isClickable = false
+            viewCorner.visibility = View.GONE
             isOpenRelativeLayoutLocalVideo = !isOpenRelativeLayoutLocalVideo
             delayShow()
         }
@@ -207,33 +290,44 @@ class ChimeView @JvmOverloads constructor(
             hideContainerLocalMiniSize()
             if (isOpenRelativeLayoutLocalVideo) {
                 resetTranslationZ() // reset lại translationZ khi containerLocal matchParent và đã ngừng hiển thị localVideo
+                emojiCurrentUser.layoutParams.width =
+                    emojiCurrentWidth.toString().toFloat().toInt() // set lại emojiCurrent params
+                emojiCurrentUser.layoutParams.height =
+                    emojiCurrentHeight.toString().toFloat().toInt()
+                emojiCurrentUser.x = emojiCurrentX.toString().toFloat()
+                emojiCurrentUser.y = emojiCurrentY.toString().toFloat()
+                localRenderView.layoutParams =
+                    layoutParamsViewCorner // reset lại layoutParams margin cho localRenderView
                 containerLocalVideo.layoutParams = layoutParamsContainerLocalVideo
                 if (!channelData!!.openCamera) {
+                    STATUS_DISPLAY = BOTH_MINI_SIZE_LOCAL_TURN_OFF_AND_REMOTE
+                    showChime() // reshow chime bởi vì videoLocal đã tắt => remoteVideoTile thay đổi
                     hideContainerLocalMiniSize()
                 } else {
+                    STATUS_DISPLAY = BOTH_MINI_SIZE_LOCAL_AND_REMOTE_
                     delayShow()
                 }
             }
+            if (hasRemoteVideo(focusAttendee!!)) { // gone invisibleCamera khi tắt camera và has remoteVideo
+                invisibleCamera.visibility = View.GONE
+            }
+            containerLocalVideo.setAllEnabled(true) // kích hoạt cho phép click localVideo
             emojiCurrentUser.layoutParams = layoutParamsEmoji
             icClose.visibility = View.GONE
+            viewCorner.visibility = View.VISIBLE
             containerLocalVideo.isClickable = true
             isOpenRelativeLayoutLocalVideo = !isOpenRelativeLayoutLocalVideo
-            emojiCurrentUser.x = positionEmojiX!!
-            emojiCurrentUser.y = positionEmojiY!!
+            updateEmoji?.invoke() // update imoji
         }
     }
 
-    private fun moveTest() {
-        var isOpen = false
-        val layoutParams = test.layoutParams
-        test.setOnClickListener {
-            if (!isOpen) {
-                test.layoutParams = layoutParamsMaxParentRelativeLayout
-            } else {
-                test.layoutParams = layoutParams
+    fun hasRemoteVideo(attendee: RosterAttendee): Boolean {
+        remoteVideoTileStates.forEach {
+            if (attendee.attendeeId == it.videoTileState.attendeeId) {
+                return true
             }
-            isOpen = !isOpen
         }
+        return false
     }
 
     private fun setUpBegin(chimeMeetConferenceOptions: ChimeMeetConferenceOptions) {
@@ -244,12 +338,6 @@ class ChimeView @JvmOverloads constructor(
         setUpConfig()
         subscribeListener()
         setUpLocalVideo(chimeMeetConferenceOptions)
-        initEmoji()
-    }
-
-    private fun initEmoji() {
-
-//        displayEmoji(emojiCurrentUser, String(Character.toChars(0x1F600)))
     }
 
     private fun handleSwipeCamera() {
@@ -284,7 +372,6 @@ class ChimeView @JvmOverloads constructor(
             val displayMetrics = DisplayMetrics()
             val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             windowManager.defaultDisplay.getMetrics(displayMetrics)
-            val height = displayMetrics.heightPixels
             val width = displayMetrics.widthPixels
             val moveViewXSize: Int = icMoveView.measuredWidth
             val slideXSize = rcSlide.measuredWidth
@@ -519,6 +606,7 @@ class ChimeView @JvmOverloads constructor(
                 memberJoined++
                 inforMeeting = SharedPreferencesManager.getInstance(this.context)
                     .getObject(SharePreferenceKey.RESPONSE, Response::class.java)
+                containerLocalVideo.visibility = View.GONE
                 setUpBegin(chimeMeetConferenceOptions)
                 handleMoveView()
                 handleChooseAudio()
@@ -526,6 +614,7 @@ class ChimeView @JvmOverloads constructor(
                 handleClickLocalVideo()
                 handleDisplay(chimeMeetConferenceOptions)
                 handleClickUser()
+                updateEmoji()
             }
         } else { // Lần thứ 2 vào join
             channelData = ChannelData(
@@ -533,20 +622,27 @@ class ChimeView @JvmOverloads constructor(
                 chimeMeetConferenceOptions.audioOnly!!
             )
             handleDisplay(chimeMeetConferenceOptions)
+            handleSetStatusDisplay()
+            updateEmoji?.invoke()
+        }
+    }
+
+    private fun handleSetStatusDisplay() {
+        if (memberJoined > 1) {
+            STATUS_DISPLAY = if (channelData!!.openCamera) {
+                BOTH_MINI_SIZE_LOCAL_AND_REMOTE_
+            } else {
+                BOTH_MINI_SIZE_LOCAL_TURN_OFF_AND_REMOTE
+            }
+        }
+        if (memberJoined == 1) {
+            STATUS_DISPLAY = ONLY_LOCAL
         }
     }
 
     private fun handleDisplay(options: ChimeMeetConferenceOptions) {
         setConfigVideoChange(options.videoMuted!!)
         setConfigMuteChange(options.audioOnly!!)
-    }
-
-    private fun handleNotLocalCamera() {
-        hideContainerLocalMiniSize()
-    }
-
-    private fun handleLocalCamera() {
-        showContainerLocalMiniSize()
     }
 
     private fun subscribeListener() {
@@ -642,18 +738,6 @@ class ChimeView @JvmOverloads constructor(
     private fun <T> List<T>.replace(newValue: T, block: (T) -> Boolean): List<T> {
         return map {
             if (block(it)) newValue else it
-        }
-    }
-
-    fun getEmojiPath(path: String) {
-        if (memberJoined == 1) {
-            displayEmoji(emoji, path)
-        } else {
-            if (channelData!!.openCamera) {
-                displayEmoji(emojiCurrentUser, path)
-            } else {
-                displayEmoji(emojiCurrentUserWhenTurnOffCamera, path)
-            }
         }
     }
 
@@ -815,6 +899,7 @@ class ChimeView @JvmOverloads constructor(
         }
         if (firstTimeSet && focusAttendee != null && memberJoined > 1) {
             focusAttendee = currentRosters[1]
+            resetChimeContainer()
             firstTimeSet = false
         }
         if (memberJoined > 1) {
@@ -827,7 +912,16 @@ class ChimeView @JvmOverloads constructor(
         callingState?.allAttendees = currentRoster.values.toList()
         updateCallingState?.invoke(callingState!!)
         Log.d(TAG, "onAttendeesJoined" + callingState.toString() + currentRoster.size)
+        handleSetStatusDisplay()
         notificationUserJoin?.invoke(currentRosters)
+        updateEmoji?.invoke() // update emoji
+    }
+
+    private fun resetChimeContainer() {
+        val inflater =
+            context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+        chimeContainer.removeAllViews()
+        renderViewLayout = inflater.inflate(R.layout.chime_view, chimeContainer, true)
     }
 
     private val CONTENT_NAME_SUFFIX = "<<Content>>"
@@ -886,6 +980,8 @@ class ChimeView @JvmOverloads constructor(
             }
         }
         notificationUserJoin?.invoke(currentRosters)
+        handleSetStatusDisplay() // type màn hình đang hiển thị.
+        updateEmoji?.invoke()
     }
 
     override fun onAttendeesMuted(attendeeInfo: Array<AttendeeInfo>) {
@@ -1009,10 +1105,12 @@ class ChimeView @JvmOverloads constructor(
 //        constraintLayoutMove = chimeLayout.findViewById(R.id.constraintLayoutMove)
         rcSlide = chimeLayout.findViewById(R.id.rcSlide)
         mainChimeLayout = chimeLayout.findViewById(R.id.mainChimeLayout)
-
+        viewCorner = chimeLayout.findViewById(R.id.viewCorner)
         renderViewLayout = inflater.inflate(R.layout.chime_view, chimeContainer, true)
         renderViewLocalLayout = inflater.inflate(R.layout.chime_view_2, localVideo, true)
+//        renderViewLocalLayout.background = ResourcesCompat.getDrawable(resources,R.drawable.border_local_video,context.theme)
         localRenderView = renderViewLocalLayout.findViewById(R.id.chime_2)
+//        localRenderView.background = ResourcesCompat.getDrawable(resources,R.drawable.border_local_video,context.theme)
 
         // inflater customView slider add ViewSlide
 //        userJoinedView = inflater.inflate(R.layout.view_users_joined, slideCustomView, true)
@@ -1022,8 +1120,8 @@ class ChimeView @JvmOverloads constructor(
     }
 
     private fun getDisplayValue() {
-        positionEmojiX = emojiCurrentUser.left.toFloat()
-        positionEmojiY = emojiCurrentUser.top.toFloat()
+        positionEmojiX = emojiCurrentUser.x
+        positionEmojiY = emojiCurrentUser.x
     }
 
     private fun setUpConfig() {
@@ -1035,23 +1133,29 @@ class ChimeView @JvmOverloads constructor(
 //        Toast.makeText(context  ,position, Toast.LENGTH_SHORT).show()
     }
 
-    fun displayEmoji(imageView: ImageView, data: String) {
+    private fun displayEmoji(imageView: ImageView, data: String) {
         with(imageView) {
-            setImageResource(
-                when (data) {
-                    "0x1F44C" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f44c)
-                    "0x1F44D" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f44d)
-                    "0x1F44E" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f44e)
-                    "0x1F44F" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f44f)
-                    "0x1F600" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f600)
-                    "0x1F60D" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f60d)
-                    "0x1F620" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f621)
-                    "0x1F628" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f628)
-                    "0x1F914" -> (R.drawable.react_features_conference_components_customize_noto_image_sets_1f914)
-                    else -> (R.drawable.react_features_conference_components_customize_noto_image_sets_270b)
-                }
-            )
+            when (data) {
+                "f09f918c" -> setImageResource((R.drawable.react_features_conference_components_customize_noto_image_sets_1f44c))
+                "f09f918d" -> setImageResource((R.drawable.react_features_conference_components_customize_noto_image_sets_1f44d))
+                "f09f918e" -> setImageResource((R.drawable.react_features_conference_components_customize_noto_image_sets_1f44e))
+                "f09f918f" -> setImageResource((R.drawable.react_features_conference_components_customize_noto_image_sets_1f44f))
+                "f09f9880" -> setImageResource((R.drawable.react_features_conference_components_customize_noto_image_sets_1f600))
+                "f09f988d" -> setImageResource((R.drawable.react_features_conference_components_customize_noto_image_sets_1f60d))
+                "f09f98a0" -> setImageResource((R.drawable.react_features_conference_components_customize_noto_image_sets_1f621))
+                "f09f98a8" -> setImageResource((R.drawable.react_features_conference_components_customize_noto_image_sets_1f628))
+                "f09fa494" -> setImageResource((R.drawable.react_features_conference_components_customize_noto_image_sets_1f914))
+                "e29c8b" -> setImageResource(R.drawable.react_features_conference_components_customize_noto_image_sets_270b)
+                else -> setImageResource(0)
+            }
         }
+    }
+
+    companion object {
+        const val ONLY_LOCAL = 0
+        const val BOTH_MINI_SIZE_LOCAL_TURN_OFF_AND_REMOTE = 1
+        const val BOTH_MINI_SIZE_LOCAL_AND_REMOTE_ = 2
+        const val BOTH_FULL_SIZE_LOCAL_AND_REMOTE_ = 3
     }
 }
 

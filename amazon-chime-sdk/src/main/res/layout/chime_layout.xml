@@ -4,10 +4,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/mainChimeLayout"
     android:layout_width="match_parent"
+    android:layout_height="match_parent"
     android:background="@color/grey"
     android:clipChildren="false"
-    android:clipToPadding="false"
-    android:layout_height="match_parent">
+    android:clipToPadding="false">
 
     <RelativeLayout
         android:id="@+id/chime_meeting_room_container"
@@ -35,10 +35,8 @@
         android:layout_above="@id/viewSpace"
         android:layout_alignParentRight="true"
         android:layout_marginEnd="20dp"
-        android:background="@color/black"
         android:layout_marginBottom="100dp"
-        android:visibility="visible"
-        tools:visibility="gone">
+        android:visibility="visible">
 
         <RelativeLayout
             android:id="@+id/localVideo"
@@ -49,21 +47,26 @@
             android:id="@+id/emojiCurrentUser"
             android:layout_width="20dp"
             android:layout_height="20dp"
-            android:layout_marginStart="5dp"
-            android:layout_marginTop="10dp"
-            android:background="@color/black" />
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="10dp" />
+
+        <View
+            android:id="@+id/viewCorner"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/border_local_video"/>
     </RelativeLayout>
 
     <ImageView
         android:id="@+id/icClose"
         android:layout_width="40dp"
         android:layout_height="40dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
         android:layout_marginTop="50dp"
         android:layout_marginEnd="20dp"
         android:src="@drawable/close_button"
-        android:visibility="gone"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentEnd="true" />
+        android:visibility="gone" />
 
     <ImageView
         android:id="@+id/swipe_camera"
@@ -89,29 +92,29 @@
         android:id="@+id/emoji"
         android:layout_width="50dp"
         android:layout_height="50dp"
+        android:layout_above="@id/viewSpace"
         android:layout_marginStart="@dimen/size_30dp"
         android:layout_marginBottom="120dp"
-        android:layout_above="@id/viewSpace"
         android:textSize="50sp" />
 
     <ImageView
         android:id="@+id/emojiCurrentUserWhenTurnOffCamera"
         android:layout_width="50dp"
         android:layout_height="50dp"
+        android:layout_above="@id/viewSpace"
+        android:layout_alignParentEnd="true"
         android:layout_marginEnd="@dimen/size_30dp"
         android:layout_marginBottom="120dp"
-        android:textSize="50sp"
-        android:layout_alignParentEnd="true"
-        android:layout_alignParentBottom="true" />
+        android:textSize="50sp" />
 
     <ImageView
         android:id="@+id/icMoveView"
         android:layout_width="30dp"
         android:layout_height="30dp"
         android:layout_centerVertical="true"
-        android:background="@color/grey"
         android:layout_marginEnd="1dp"
         android:layout_toLeftOf="@id/viewSpace2"
+        android:background="@color/grey"
         android:src="@drawable/ic_baseline_keyboard_arrow_left_24"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
@@ -121,16 +124,16 @@
         android:id="@+id/viewSpace2"
         android:layout_width="1dp"
         android:layout_height="match_parent"
-        android:background="@color/grey"
-        android:layout_alignParentEnd="true" />
+        android:layout_alignParentEnd="true"
+        android:background="@color/grey" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rcSlide"
         android:layout_width="100dp"
-        android:background="@color/grey"
         android:layout_height="match_parent"
         android:layout_marginStart="10dp"
         android:layout_toRightOf="@id/viewSpace2"
+        android:background="@color/grey"
         android:orientation="vertical"
         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
@@ -146,7 +149,6 @@
         android:visibility="gone">
 
     </RelativeLayout>
-
 
 
 </RelativeLayout>

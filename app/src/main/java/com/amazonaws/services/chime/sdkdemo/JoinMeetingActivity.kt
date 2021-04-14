@@ -14,6 +14,7 @@ class JoinMeetingActivity : AppCompatActivity() {
     private lateinit var videoButton: ImageView
     private lateinit var actionMore: ImageView
     private lateinit var localVideo: ImageView
+    private lateinit var exitRoom: ImageView
     private val MEETING_REGION = "us-east-1"
     private var meetingId: String? = null
     private var name: String? = null
@@ -44,6 +45,12 @@ class JoinMeetingActivity : AppCompatActivity() {
             booleanName = !booleanName
             chime.join(chimeMeetConferenceOptions!!)
         }
+        actionMore.setOnClickListener {
+            chime.sendReaction("f09f98a0")
+        }
+        exitRoom.setOnClickListener {
+            chime.sendReaction("00")
+        }
     }
 
     private fun getData() {
@@ -70,5 +77,6 @@ class JoinMeetingActivity : AppCompatActivity() {
         videoButton = findViewById(R.id.local_video_action_fab)
         actionMore = findViewById(R.id.action_more)
         localVideo = findViewById(R.id.local_video_action_fab)
+        exitRoom = findViewById(R.id.exit_room)
     }
 }

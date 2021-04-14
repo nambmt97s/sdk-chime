@@ -28,7 +28,7 @@
         android:importantForAutofill="no"
         android:inputType="text"
         android:maxLength="35"
-        android:text="255"
+        android:text="260"
         android:textAlignment="center" />
 
     <EditText

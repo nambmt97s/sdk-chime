@@ -26,7 +26,7 @@ class CallingMeetingManager(private val chimeView: ChimeView) {
     }
 
     fun sendEmojiPath(path: String) {
-        chimeView.getEmojiPath(path)
+//        chimeView.getEmojiPath(path)
     }
 
     companion object {
